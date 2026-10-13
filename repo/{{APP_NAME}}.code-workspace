@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{ "name": "workspace-root", "path": "." },
+		{ "name": "{{APP_FOLDER}}", "path": "{{APP_FOLDER}}" },
+		{ "name": "{{TEST_FOLDER}}", "path": "{{TEST_FOLDER}}" },
+		{ "name": "supporting-files", "path": "supporting-files" }
+	],
+	"settings": {
+		"al.packageCachePath": "../supporting-files/.alpackages",
+		"al.ruleSetPath": "../supporting-files/{{PREFIX}}.ruleset.json",
+		"al.enableCodeAnalysis": true,
+		"al.backgroundCodeAnalysis": true,
+		"al.codeAnalyzers": ["${CodeCop}", "${AppSourceCop}", "${PerTenantExtensionCop}", "${UICop}"],
+		"al.incrementalBuild": false
+	}
+}

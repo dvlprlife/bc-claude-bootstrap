@@ -1,0 +1,89 @@
+name: Close Linked Issue On Merge
+
+# Post-merge transition for the agent issue workflow.
+#
+# PRs in this repo target a release/X.X.X.X branch (not the default branch), so
+# GitHub's "Closes #N" keyword does NOT auto-close the linked issue, and an
+# issue can be left stranded with a stale Status:* label.
+#
+# When a PR is merged, this workflow finds the linked issue(s) from the PR body
+# closing keywords and/or the <number>-slug branch name, strips the workflow
+# status labels, and closes the issue as completed.
+#
+# NOTE: a pull_request workflow runs the copy of this file that exists on the
+# PR's BASE branch. Keep this file in sync on every branch that receives PRs
+# (each active release/X.X.X.X and main) for the transition to fire there.
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: close-linked-issue-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  close-linked-issue:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close linked issue(s) and clear status labels
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+
+          # Status labels that should never remain on a resolved issue.
+          STATUS_LABELS="Status:Ready
+          Status:In Progress
+          Status:In Review
+          Status:Need Plan
+          Review:Merge
+          Review:Plan"
+
+          # 1) Collect issue numbers from PR-body closing keywords (GitHub's set).
+          body_nums="$(printf '%s' "${PR_BODY:-}" \
+            | grep -oiE '(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)[[:space:]]+#[0-9]+' \
+            | grep -oE '[0-9]+' || true)"
+
+          # 2) ...and from a "<number>-slug" branch name.
+          branch_num="$(printf '%s' "${HEAD_REF:-}" | grep -oE '^[0-9]+' || true)"
+
+          issues="$(printf '%s\n%s\n' "$body_nums" "$branch_num" | grep -E '^[0-9]+$' | sort -un || true)"
+
+          if [ -z "$issues" ]; then
+            echo "No linked issue found in PR #$PR_NUMBER body or branch name; nothing to do."
+            exit 0
+          fi
+
+          for n in $issues; do
+            state="$(gh issue view "$n" --repo "$REPO" --json state --jq '.state' 2>/dev/null || echo "")"
+            if [ "$state" != "OPEN" ]; then
+              echo "Issue #$n is not open (state='${state:-not found}'); skipping."
+              continue
+            fi
+
+            # Remove only the status labels actually present (avoids gh errors).
+            current="$(gh issue view "$n" --repo "$REPO" --json labels --jq '.labels[].name')"
+            while IFS= read -r label; do
+              label="$(printf '%s' "$label" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+              [ -z "$label" ] && continue
+              if printf '%s\n' "$current" | grep -qxF "$label"; then
+                echo "Removing label '$label' from issue #$n"
+                gh issue edit "$n" --repo "$REPO" --remove-label "$label"
+              fi
+            done <<< "$STATUS_LABELS"
+
+            echo "Closing issue #$n"
+            gh issue close "$n" --repo "$REPO" --reason completed \
+              --comment "Closed automatically: fixed by #$PR_NUMBER (merged into \`$BASE_REF\`). The \`Closes #$n\` keyword only auto-closes on merge to the default branch, so this post-merge workflow handled it."
+          done

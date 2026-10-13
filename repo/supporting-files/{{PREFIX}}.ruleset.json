@@ -1,0 +1,26 @@
+{
+    "name": "{{PREFIX}} Rules",
+    "description": "The code-analysis rules for {{APP_NAME}}. Add a justification for each rule you change.",
+    "rules": [
+        {
+            "id": "AA0232",
+            "action": "None",
+            "justification": "The FlowField <> of <> should be added to the SIFT key."
+        },
+        {
+            "id": "AS0084",
+            "action": "Hidden",
+            "justification": "The app uses its own AppSource ID range, outside the AppSource default range."
+        },
+        {
+            "id": "PTE0001",
+            "action": "Hidden",
+            "justification": "AppSource app: objects are outside the per-tenant range 50000..99999."
+        },
+        {
+            "id": "PTE0002",
+            "action": "Hidden",
+            "justification": "AppSource app: fields are outside the per-tenant range 50000..99999."
+        }
+    ]
+}

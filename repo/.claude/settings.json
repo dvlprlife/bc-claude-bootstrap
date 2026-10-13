@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh auth *)",
+      "Bash(gh repo *)",
+      "Bash(gh label *)",
+      "Bash(gh issue *)",
+      "Bash(gh pr *)",
+      "Bash(gh run *)",
+      "Bash(git checkout *)",
+      "Bash(al --version)",
+      "Bash(al launchmcpserver *)"
+    ]
+  },
+  "enabledMcpjsonServers": [
+    "al"
+  ]
+}
