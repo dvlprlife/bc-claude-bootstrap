@@ -6,9 +6,14 @@ server, and sandbox publish and test.
 
 ## Use
 
-1. Copy this folder to the new machine.
+1. Clone this repo to the machine:
+   `git clone https://github.com/dvlprlife/bc-claude-bootstrap`
 2. Open Claude Code in the target repository.
 3. Tell Claude: `Read <path>\bc-claude-bootstrap\bootstrap.md and set up this repo.`
 
 Claude collects the values (app name, prefix, ID ranges, sandbox), copies the templates, fills in
 the placeholders, and checks the setup. It asks before it pushes or installs anything.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
