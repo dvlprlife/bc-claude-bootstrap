@@ -90,7 +90,7 @@ Get each value from the repo first. Ask the user only for the values you cannot 
 not a secret, but tell the user before Step 3 that the two values become part of the repo. This
 matters most on a public repo. Continue only when the user accepts it.
 
-Ask five more questions in this step. They have no placeholder, but Step 4, Step 5, and Step 8 use
+Ask six more questions in this step. They have no placeholder, but Step 4, Step 5, and Step 8 use
 the answers.
 
 | Question | Choices | Used in |
@@ -99,7 +99,8 @@ the answers.
 | **CI gate** — is a green GitHub CI run necessary before the sandbox publish? | `No` (the local compile and the sandbox are the gates), or `Yes` (a green `CICD.yaml` run comes first) | Step 4.11 |
 | **.gitignore** — does the repo use the kit's `.gitignore` or its own? | `Kit` (the kit's file replaces the repo's file), or `Own` (the repo keeps its file, and the kit adds the lines it needs) | Step 4.2 |
 | **Branch protection** — does the repo get the kit's GitHub ruleset on `main` and `release/*`? | `Yes` (pull request with one approval, no deletion, no force push; the Admin role is exempt), or `No` (the repo keeps its current rules) | Step 4.12 |
-| **User-level files** — does the machine get the kit's global rules and the progress dashboard in `~/.claude`? | `Yes` (a writing standard and a dashboard rule that apply to each project on the machine), or `No` (the kit changes only the repo) | Step 5 |
+| **Writing standard** — does the machine get the kit's global writing standard in `~/.claude/CLAUDE.md`? | `Yes` (Simplified Technical English and no absolutes, for each project on the machine), or `No` | Step 5 |
+| **Progress dashboard** — does the machine get the progress dashboard for long tasks? | `Yes` (a dashboard rule in `~/.claude/CLAUDE.md`, the `dashboard-builder` subagent, and its page template; it needs claude.ai Artifacts), or `No` | Step 5 |
 
 Write the values down and show them to the user in one table before Step 3.
 
@@ -236,26 +237,30 @@ Write the values down and show them to the user in one table before Step 3.
 
 ## Step 5 — Install the user-level files
 
-Use the answer to the user-level files question from Step 2. For the answer `No`, skip this step.
-The issue workflow does not use these files.
+Use the answers to the writing standard question and the progress dashboard question from Step 2.
+The two answers are independent. When both answers are `No`, skip this step. The issue workflow
+does not use these files.
 
 These files are outside the repo, and `user/CLAUDE.md` applies to each project on the machine. It
-has two rules: a writing standard (Simplified Technical English and no absolutes) for
-documentation, GitHub issues, PR descriptions, and commit messages, and a progress dashboard for
-long tasks. Show the user the content of `user/CLAUDE.md`, and get the user's approval before
-you write to `~/.claude`. The user can accept one rule and not the other.
+has two sections, one for each question. Show the user each section that they chose, and get the
+user's approval before you write to `~/.claude`.
 
 Do this once on each machine. Compare each file with the copy that is already there first.
 
-1. If `~/.claude/CLAUDE.md` exists, merge the accepted sections of the kit's `user/CLAUDE.md`
+1. **Writing standard, answer `Yes`:** add the section **Writing standard for documentation and
+   notes** from the kit's `user/CLAUDE.md` to `~/.claude/CLAUDE.md`. If the file exists, merge
    into it. Do not replace it.
-2. For the dashboard rule only: copy `user/agents/dashboard-builder.md` to `~/.claude/agents/`.
-3. For the dashboard rule only: copy `user/dashboard-builder/template.html` to
-   `~/.claude/dashboard-builder/`.
+2. **Progress dashboard, answer `Yes`:**
+   1. Add the section **Progress dashboard for long tasks** from the kit's `user/CLAUDE.md` to
+      `~/.claude/CLAUDE.md` in the same way.
+   2. Copy `user/agents/dashboard-builder.md` to `~/.claude/agents/`.
+   3. Copy `user/dashboard-builder/template.html` to `~/.claude/dashboard-builder/`.
+
+For an answer `No`, do not add that section and do not copy its files.
 
 The dashboard needs claude.ai Artifacts in the Claude Code session. When Artifacts are not
-available, do not install the dashboard rule or its two files. The dashboard page loads its fonts
-from Google Fonts.
+available, tell the user, and use the answer `No` for the dashboard. The dashboard page loads its
+fonts from Google Fonts.
 
 ## Step 6 — Get the symbols and do the first compile
 
