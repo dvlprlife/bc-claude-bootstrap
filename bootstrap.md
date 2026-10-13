@@ -54,9 +54,10 @@ the user's approval.
    to create it from the AL-Go AppSource template (`microsoft/AL-Go-AppSource`) and to add the app
    and the test app with the AL-Go **Create a new app** and **Create a new test app** workflows.
    This kit does not replace the AL-Go workflows. It adds to them.
-5. **BCQuality.** Clone the BCQuality fork as a sibling of the repo, in the same parent folder:
-   `git clone https://github.com/{{BCQUALITY_REPO}} ../BCQuality`. Ask the user for the fork when
-   it is not known. A clone of upstream `microsoft/BCQuality` works, but it has no `custom/` rules.
+5. **BCQuality.** Clone BCQuality as a sibling of the repo, in the same parent folder:
+   `git clone https://github.com/{{BCQUALITY_REPO}} ../BCQuality`. The default is upstream
+   `microsoft/BCQuality`, and the workflow is complete with it. A fork is optional: it adds the
+   organization's own rules in its `custom/` layer. Ask the user whether they have a fork.
 6. **The sandbox.** The user needs a BC sandbox and an account with publish rights. For test runs,
    the Microsoft test toolkit must be on the sandbox: Test Runner, Library Assert, Application
    Test Library, and Any.
@@ -82,9 +83,15 @@ Get each value from the repo first. Ask the user only for the values you cannot 
 | `{{BC_RUNTIME}}` | AL runtime version that matches the application version (for example `17.0`) | Ask, or get it from the application version |
 | `{{SANDBOX_ENV}}` | Sandbox environment name | Ask |
 | `{{TENANT_ID}}` | Entra tenant GUID of the sandbox | Ask |
-| `{{BCQUALITY_REPO}}` | BCQuality fork as `owner/repo` (for example `contoso/BCQuality`) | Ask |
+| `{{BCQUALITY_REPO}}` | BCQuality repo as `owner/repo`. The default is `microsoft/BCQuality`. A fork is optional (for example `contoso/BCQuality`) | Ask whether the user has a fork. If not, use the default |
 
-Ask four more questions in this step. They have no placeholder, but Step 4 and Step 8 use the answers.
+`{{SANDBOX_ENV}}` and `{{TENANT_ID}}` go into tracked files: `CLAUDE.md`,
+`.github/copilot-instructions.md`, and `.claude/agents/README.md`. A tenant ID is an identifier,
+not a secret, but tell the user before Step 3 that the two values become part of the repo. This
+matters most on a public repo. Continue only when the user accepts it.
+
+Ask five more questions in this step. They have no placeholder, but Step 4, Step 5, and Step 8 use
+the answers.
 
 | Question | Choices | Used in |
 |---|---|---|
@@ -92,6 +99,7 @@ Ask four more questions in this step. They have no placeholder, but Step 4 and S
 | **CI gate** — is a green GitHub CI run necessary before the sandbox publish? | `No` (the local compile and the sandbox are the gates), or `Yes` (a green `CICD.yaml` run comes first) | Step 4.11 |
 | **.gitignore** — does the repo use the kit's `.gitignore` or its own? | `Kit` (the kit's file replaces the repo's file), or `Own` (the repo keeps its file, and the kit adds the lines it needs) | Step 4.2 |
 | **Branch protection** — does the repo get the kit's GitHub ruleset on `main` and `release/*`? | `Yes` (pull request with one approval, no deletion, no force push; the Admin role is exempt), or `No` (the repo keeps its current rules) | Step 4.12 |
+| **User-level files** — does the machine get the kit's global rules and the progress dashboard in `~/.claude`? | `Yes` (a writing standard and a dashboard rule that apply to each project on the machine), or `No` (the kit changes only the repo) | Step 5 |
 
 Write the values down and show them to the user in one table before Step 3.
 
@@ -105,6 +113,8 @@ Write the values down and show them to the user in one table before Step 3.
    - `.github/copilot-instructions.md` — keep project-specific content. Add the kit's sections.
    - A `.code-workspace` file — add the `al.*` settings from the kit's workspace file.
    - `.claude/settings.json` — merge the `permissions.allow` lists and `enabledMcpjsonServers`.
+     The kit's list pre-approves the read, label, comment, and PR-create commands that the
+     agents use. It does not pre-approve a merge, a delete, or a push. Show the list to the user.
 3. Replace each placeholder with its value in each copied file.
 4. In `.mcp.json`, list each AL project folder after `launchmcpserver`, one for each argument.
 5. Search the target repo for `{{`. The result must be empty, except in code that uses `{{`
@@ -128,21 +138,28 @@ Write the values down and show them to the user in one table before Step 3.
    personal Claude settings stay out of git.
 3. **Symbol cache.** Create the folder `supporting-files/.alpackages`. It is git-ignored, so each
    clone starts empty.
-4. **Ruleset.** Read the kit's `{{PREFIX}}.ruleset.json` with the user. The kit's file is for
-   an AppSource app with its own ID range. Get the app type from `type` in
-   `.github/AL-Go-Settings.json` (`PTE` or `AppSource App`).
-   - **AppSource app:** keep the file as it is.
-   - **Per-tenant extension:** remove the `PTE0001` and `PTE0002` suppressions, so that
-     PerTenantExtensionCop checks the `50000..99999` range. Keep `AS0084` hidden, and change
-     its justification: AppSourceCop rejects the per-tenant range by design. Also hide
-     `AS0015`, `AS0051`, and `AS0052`. These are AppSource submission rules (translation
-     file, marketplace manifest properties, manifest URL), and each one is an error on a
-     per-tenant extension. Write a per-tenant justification for each rule.
-5. **launch.json.** Add a sandbox configuration to `{{APP_FOLDER}}/.vscode/launch.json` (local
-   only): `"environmentType": "Sandbox"`, `"environmentName": "{{SANDBOX_ENV}}"`,
-   `"tenant": "{{TENANT_ID}}"`, `"schemaUpdateMode": "ForceSync"`.
-6. **CloseLinkedIssueOnMerge.yaml.** A `pull_request` workflow runs from the PR's **base** branch.
-   Put the file on `main` and on each active `release/X.X.X.X` branch.
+4. **Ruleset.** Read the kit's `{{PREFIX}}.ruleset.json` with the user. The file has two sets of
+   range suppressions, and one app needs only one of them. Choose by the ID range
+   (`{{ID_FROM}}..{{ID_TO}}`), and write a justification that is true for this app.
+   - **The range is inside `50000..99999`:** keep `AS0084` hidden. Remove the `PTE0001` and
+     `PTE0002` suppressions, so that PerTenantExtensionCop checks the range.
+   - **The range is outside `50000..99999`:** keep `PTE0001` and `PTE0002` hidden. Remove the
+     `AS0084` suppression.
+
+   Then get the app type from `type` in `.github/AL-Go-Settings.json` (`PTE` or `AppSource App`).
+   For a per-tenant extension, also hide `AS0015`, `AS0051`, and `AS0052`. These are AppSource
+   submission rules (translation file, marketplace manifest properties, manifest URL), and each
+   one is an error on a per-tenant extension. Write a per-tenant justification for each rule.
+5. **launch.json.** Add a sandbox configuration to `{{APP_FOLDER}}/.vscode/launch.json`:
+   `"environmentType": "Sandbox"`, `"environmentName": "{{SANDBOX_ENV}}"`,
+   `"tenant": "{{TENANT_ID}}"`, `"schemaUpdateMode": "ForceSync"`. The file must be local only.
+   Run `git ls-files "*/.vscode/launch.json"`. The AL-Go **Create a new app** workflow can
+   commit this file. For each file in the result, get the user's approval, then run
+   `git rm --cached <file>`. Step 4.2 keeps `.vscode/` out of git after that.
+6. **CloseLinkedIssueOnMerge.yaml.** A `pull_request` workflow runs from the PR's **base** branch,
+   so the file must be on each branch that receives PRs: `main` and each active
+   `release/X.X.X.X` branch. The Step 8 PR puts the file on one base branch. For each other
+   branch, tell the user that a second PR with the file is necessary.
 7. **CI triggers.** Read `.github/workflows/CICD.yaml` and `PullRequestHandler.yaml`. Compare the
    `on:` blocks with the **Branching and CI** section of `CLAUDE.md`. Correct `CLAUDE.md` where
    this repo's AL-Go version is different.
@@ -150,8 +167,21 @@ Write the values down and show them to the user in one table before Step 3.
    - **Release branch:** the workflow targets the highest release branch. If the branch from
      Step 2 does not exist, cut it (`git checkout -b release/X.X.X.X origin/main`). Pushing it
      needs the user's approval.
-   - **`main`:** do not cut a branch. In `CLAUDE.md` and `.claude/agents/README.md`, change the
-     text that says development targets a release branch, so that it names `main`.
+   - **`main`:** do not cut a branch. Change the text that says development or PRs target a
+     release branch, so that it names `main`. Change these passages:
+     - `CLAUDE.md`, **Branching and CI**: the first bullet, and the bullet about
+       `PullRequestHandler.yaml` (a PR into `main` gets a pre-merge build).
+     - `.claude/agents/README.md`, **The loop**: step 1.
+     - `.claude/commands/issue-worker.md`: the step that finds the base branch.
+     - `.claude/agents/pull-request-reviewer.md`: Step 0. GitHub closes the issue on a merge
+       to `main`, so the step is a backstop for the labels only.
+     - `.github/copilot-instructions.md`, **Sandbox Publish & Live Testing**: the post-merge
+       publish commits the bump on `main`.
+     - `supporting-files/documentation/release-process.md`: the runbook describes a release
+       branch that merges into `main`. Read it with the user and remove the release-branch
+       sections that do not apply.
+
+     Then search the installed files for `release/` and read each result.
 9. **Application and platform version.** In the `app.json` of each AL project, set
    `"application": "{{BC_APPLICATION}}"`, `"platform": "{{BC_PLATFORM}}"`, and
    `"runtime": "{{BC_RUNTIME}}"`. The AL-Go **Create a new app** workflow writes an old application
@@ -173,8 +203,8 @@ Write the values down and show them to the user in one table before Step 3.
         that the sandbox publish is allowed only after CI is green, or on the user's request.
       - `.github/copilot-instructions.md`, **Sandbox Publish & Live Testing**: the gate is "CI is
         green for that build". The pre-merge publish follows a green PR-branch run. The
-        post-merge publish follows a green run on the base branch. Remove the two sentences
-        that say CI is not a gate.
+        post-merge publish follows a green run on the base branch. Remove each sentence in
+        the section that says CI is not a gate.
       - `.claude/agents/README.md`, **The gates around the merge**: replace the "No GitHub CI
         gate" and "Compile and publish" bullets with a "CI" bullet that gives the
         `gh workflow run` command. Change loop step 8 so that CI comes before the publish.
@@ -197,6 +227,8 @@ Write the values down and show them to the user in one table before Step 3.
     Tell the user about these three effects before you apply it:
     - **The Admin role is exempt.** A user with the Admin role can merge their own PR and can
       push the post-merge sandbox bump to the release branch. A user without that role cannot.
+      GitHub does not let an account approve its own PR. On a repo with one account, each
+      merge goes through this exemption.
     - **There is no required status check.** A PR into a release branch gets no automatic build,
       so a required check would block the merge. Add one only for a check that runs on the PR.
     - **A private repo on a free GitHub plan does not enforce rulesets.** The repo must be public,
@@ -204,14 +236,26 @@ Write the values down and show them to the user in one table before Step 3.
 
 ## Step 5 — Install the user-level files
 
+Use the answer to the user-level files question from Step 2. For the answer `No`, skip this step.
+The issue workflow does not use these files.
+
+These files are outside the repo, and `user/CLAUDE.md` applies to each project on the machine. It
+has two rules: a writing standard (Simplified Technical English and no absolutes) for
+documentation, GitHub issues, PR descriptions, and commit messages, and a progress dashboard for
+long tasks. Show the user the content of `user/CLAUDE.md`, and get the user's approval before
+you write to `~/.claude`. The user can accept one rule and not the other.
+
 Do this once on each machine. Compare each file with the copy that is already there first.
 
-1. If `~/.claude/CLAUDE.md` exists, merge the kit's `user/CLAUDE.md` into it. Do not replace it.
-2. Copy `user/agents/dashboard-builder.md` to `~/.claude/agents/`.
-3. Copy `user/dashboard-builder/template.html` to `~/.claude/dashboard-builder/`.
+1. If `~/.claude/CLAUDE.md` exists, merge the accepted sections of the kit's `user/CLAUDE.md`
+   into it. Do not replace it.
+2. For the dashboard rule only: copy `user/agents/dashboard-builder.md` to `~/.claude/agents/`.
+3. For the dashboard rule only: copy `user/dashboard-builder/template.html` to
+   `~/.claude/dashboard-builder/`.
 
 The dashboard needs claude.ai Artifacts in the Claude Code session. When Artifacts are not
-available, skip the dashboard. The issue workflow does not use it.
+available, do not install the dashboard rule or its two files. The dashboard page loads its fonts
+from Google Fonts.
 
 ## Step 6 — Get the symbols and do the first compile
 
@@ -223,8 +267,8 @@ available, skip the dashboard. The issue workflow does not use it.
    `supporting-files/.alpackages`.
 
    Make sure the cache has a package for each Microsoft dependency of the test app (Library
-   Assert, Any, and the others). With AL tools 18.0.43, the download for the test project
-   can return only the packages of the first project. For each missing package, get the
+   Assert, Any, and the others). As observed with AL tools 18.0.43, the download for the test
+   project can return only the packages of the first project. For each missing package, get the
    symbols from the Microsoft public feed
    (`https://dynamicssmb2.pkgs.visualstudio.com/DynamicsBCPublicFeeds/_packaging/MSSymbols/nuget/v3/index.json`).
    The package ID is `Microsoft.<NameWithoutSpaces>.symbols.<app id>`, for example
@@ -242,7 +286,8 @@ available, skip the dashboard. The issue workflow does not use it.
 
 ## Step 7 — Do a dry run of the loop
 
-1. Run the `repo-check` subagent. It creates the 8 labels. Do not create them by hand.
+1. Tell the user that `repo-check` creates the 8 workflow labels on the GitHub repo. Then run the
+   `repo-check` subagent. Do not create the labels by hand.
 2. Run `/bc-review` on one `.al` file. Confirm that Gate 1 (compile) and Gate 2 (BCQuality) both run,
    and that the BCQuality `outcome` is `completed`.
 3. Optional: ask the user for a small test issue. Label it `Agent` + `Status:Need Plan`, then run
@@ -266,7 +311,8 @@ available, skip the dashboard. The issue workflow does not use it.
 - [ ] Each `app.json` has the application, platform, and runtime versions that the user gave.
 - [ ] The test app's `app.json` has a dependency on the main app.
 - [ ] `al --version`, `gh auth status`, and `pwsh --version` succeed.
-- [ ] `../BCQuality` exists, and its `origin` is the fork.
+- [ ] `../BCQuality` exists, and its `origin` is `{{BCQUALITY_REPO}}`.
+- [ ] No `launch.json` is tracked in git.
 - [ ] `supporting-files/.alpackages` has the Microsoft symbols and one `{{APP_NAME}}` package.
 - [ ] Each AL project compiles with zero errors and all four analyzers.
 - [ ] `repo-check` reports 8 labels and an active base branch.

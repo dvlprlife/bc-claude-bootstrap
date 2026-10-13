@@ -8,31 +8,31 @@ description: Compile-check and review AL/Business Central code. On a PR or branc
 Reviews Business Central AL code by consuming the **BCQuality** knowledge base — a
 curated, machine-readable set of BC-specific coding guidelines and review skills.
 The guidelines are *not* in this repo; they live in BCQuality and are referenced at
-review time, so every BC project gets the same quality bar without copying docs around.
+review time, so each BC project uses the same guidelines without copying docs around.
 
 This skill is the entry point. It does not contain the guidelines — it points the
 agent at BCQuality and follows BCQuality's own dispatch contract.
 
 ## Locate BCQuality
 
-BCQuality is a sibling clone under the same GitHub root as this project. Resolve it
+BCQuality is a sibling clone in the same parent folder as this project. Resolve it
 in this order and use the first that exists:
 
 1. `$BCQUALITY_PATH` environment variable, if set.
 2. `../BCQuality` (sibling of this repo — the normal case).
 3. Ask the user for the path.
 
-If the folder is missing, tell the user to clone our fork (`git clone
+If the folder is missing, tell the user to clone the project's BCQuality repo (`git clone
 https://github.com/{{BCQUALITY_REPO}}` next to this repo) rather than guessing
 — do not invent guideline content from memory.
 
 Refer to the resolved location below as `<BCQ>`.
 
-**Use our fork, not upstream.** `<BCQ>` should be a clone of
-`{{BCQUALITY_REPO}}` — that is the fork whose `custom/` layer holds our
-org-specific AL rules (e.g. the `reliability` domain). The upstream `microsoft/BCQuality`
-has an empty `custom/`, so a clone of upstream reviews with only the `microsoft` and
-`community` layers. If you detect `<BCQ>` points at upstream (its `origin` remote is
+**The project's BCQuality repo is `{{BCQUALITY_REPO}}`.** That is upstream
+`microsoft/BCQuality`, or a fork of it. A fork can hold organization-specific AL rules
+in its `custom/` layer. Upstream has an empty `custom/`, so a clone of upstream reviews
+with the `microsoft` and `community` layers, and that is a complete review. If the
+project's repo is a fork but `<BCQ>` points at upstream (its `origin` remote is
 `microsoft/BCQuality`), note in the report that custom rules were not applied.
 
 ## What to review (resolve the target from the user's request / args)
@@ -101,9 +101,10 @@ cache is the reliable path for the dependent projects.
      /analyzer:"$az\Microsoft.Dynamics.Nav.PerTenantExtensionCop.dll" /analyzer:"$az\Microsoft.Dynamics.Nav.UICop.dll"
    ```
 
-   Call `alc.exe` directly, not `al compile --`: with AL tools 18.0.43 the wrapper does not
-   load the analyzers (an `AL1003` warning for each rule) and still exits 0. Treat an
-   `AL1003` in the output as "the analyzers did not run", not as a pass.
+   Call `alc.exe` directly, not `al compile --`: as observed with AL tools 18.0.43, the wrapper
+   does not load the analyzers (an `AL1003` warning for each rule) and still exits 0. Check
+   this again after an AL tools update. Treat an `AL1003` in the output as "the analyzers did
+   not run", not as a pass.
 
    Exit code 0 = builds. Delete the throwaway `.app` after. If the compile rewrote any
    `.docx` report layout as a side effect, `git checkout --` it. (The CLI
@@ -116,8 +117,10 @@ cache is the reliable path for the dependent projects.
    one job the MCP server (`al` in `.mcp.json`) exists for:
    `al_downloadsymbols { "projectPath": "<PROJECT>", "globalSourcesOnly": true }` —
    platform/base symbols from Microsoft NuGet/AppSource, **no BC server or auth**, skips
-   already-cached. If the `al` server isn't approved/connected, tell the user to approve
-   it or run VS Code's "AL: Download Symbols" — do not guess at symbols.
+   already-cached. The download lands in `<PROJECT>/.alpackages`, and step 1 reads only the
+   shared cache: copy the downloaded `.app` files to `<repo>/supporting-files/.alpackages`
+   before you re-run step 1. If the `al` server isn't approved/connected, tell the user to
+   approve it or run VS Code's "AL: Download Symbols" — do not guess at symbols.
 
 3. **Capture diagnostics (always — this is a required output, not optional).** Every run
    of this gate must surface the compiler diagnostics, by whichever path produced the
@@ -152,10 +155,10 @@ Fully-MCP variant (when the `al` server is connected and you prefer structured o
 end-to-end): `al_downloadsymbols { globalSourcesOnly: true }` (if needed) →
 `al_compile { onlyErrors: false, enableCodeAnalysis: true, codeAnalyzers: ["${CodeCop}","${AppSourceCop}","${PerTenantExtensionCop}","${UICop}"] }`
 → `al_getdiagnostics { severities: ["error","warning"] }`. Same gate behavior; all three
-steps share one MCP session so diagnostics line up with the compile. (Note: the MCP
-`al_compile` reads symbols only from the default `<project>/.alpackages`; it does **not**
-honor `al.packageCachePath`, so the symbols must be there — which is what
-`al_downloadsymbols` ensures.)
+steps share one MCP session so diagnostics line up with the compile. (Note: as observed
+with AL tools 18.0.43, the MCP `al_compile` reads symbols from the default
+`<project>/.alpackages` and does **not** honor `al.packageCachePath`, so the symbols must
+be there — `al_downloadsymbols` puts them there.)
 
 ## How to run BCQuality
 
@@ -208,8 +211,9 @@ reports; offer to apply mechanical `suggested-code` fixes if any are present.
 
 ## When a real issue has no guideline behind it
 
-If the review (or a real bug we just fixed) is something BCQuality has **no** knowledge
-file for, that is the signal to add one to the `custom/` layer of our BCQuality fork —
-that is how the guideline set compounds over time. Mention the gap; offer to draft the
-`custom/knowledge/<domain>/<slug>.md` file (plus `.good.al` / `.bad.al` samples) per
-`<BCQ>/skills/write.md`.
+If the review (or a bug that was just fixed) is something BCQuality has **no** knowledge
+file for, mention the gap. When the project's BCQuality repo is a fork, that is the signal
+to add a file to its `custom/` layer — that is how the guideline set compounds over time.
+Offer to draft the `custom/knowledge/<domain>/<slug>.md` file (plus `.good.al` / `.bad.al`
+samples) per `<BCQ>/skills/write.md`. With upstream `microsoft/BCQuality`, there is no
+`custom/` layer to add to: tell the user that a fork is the place for such a rule.

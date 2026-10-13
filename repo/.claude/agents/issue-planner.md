@@ -72,8 +72,8 @@ Report which issue was flagged and **stop**. Ask for the specific missing facts 
 5. Note dependencies and ordering between the changes.
 6. Check `supporting-files/DEPRECATIONS.md` if the change obsoletes or removes anything.
 
-Grounding note: when an issue names objects from a sibling app (another repo under the same GitHub
-root that this feature is modeled on), read those objects there before you plan.
+Grounding note: when an issue names objects from another app that the feature is modeled on, and
+that app's repo is available on this machine, read those objects there before you plan.
 
 ## Step 5 — Write the implementation plan
 

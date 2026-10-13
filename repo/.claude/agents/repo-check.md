@@ -60,8 +60,9 @@ Find branches matching `release/X.X.X.X` (e.g. `release/1.2.0.0`). If several ex
 **highest version** is the active base branch.
 
 - If a `release/X.X.X.X` branch **exists**, report it as the active release branch.
-- If **none** exists, flag it: `main` becomes the fallback base, which usually means a release branch
-  needs cutting before implementation work starts.
+- If **none** exists, `main` is the base branch. Read the **Branching and CI** section of `CLAUDE.md`:
+  when it says development targets a release branch, flag that a release branch needs cutting before
+  implementation work starts. When it says development targets `main`, this is the expected state.
 
 ## Step 3 — Report
 
@@ -69,5 +70,6 @@ Your final message is the return value — make it a compact status block, not p
 
 1. **CLI authentication** — ✅ authenticated (account) or ❌ not authenticated
 2. **Labels** — which were created, or "all 8 present"; plus any color/description mismatches noted
-3. **Base branch** — ✅ `release/X.X.X.X` (name) or ⚠️ none found, `main` will be used
+3. **Base branch** — ✅ `release/X.X.X.X` (name), ✅ `main` (the project targets `main`), or ⚠️ no
+   release branch found although the project targets one
 4. **Verdict** — ready for agent work, or the specific blocker

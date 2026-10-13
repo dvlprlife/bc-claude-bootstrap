@@ -62,11 +62,12 @@ checklist, label transitions, and the merged-issue reconcile.
 
 ## The loop
 
-1. **`repo-check`** — verify `gh` auth, create missing labels, confirm the active `release/X.X.X.X` branch.
+1. **`repo-check`** — verify `gh` auth, create missing labels, confirm the base branch (the active
+   `release/X.X.X.X` branch, or `main` when the project has no release branch).
 2. **New issue** — labelled `Agent` + `Status:Need Plan` by hand.
 3. **`issue-planner`** — posts a plan, moves to `Status:Ready` + `Review:Plan`.
-4. **Human reviews the plan** — removes `Review:Plan` to release it for pickup. Nothing picks up an
-   issue still carrying that label.
+4. **Human reviews the plan** — removes `Review:Plan` to release it for pickup. The worker does
+   not pick up an issue that still has that label.
 5. **`/issue-worker`** — implements, compiles, commits, opens the PR, moves to `Status:In Review`.
 6. **`pull-request-reviewer`** — reviews against conventions and acceptance criteria.
 7. **Changes requested** → back to `Status:Ready`; `/issue-worker` reworks the same branch (step 5).
@@ -111,10 +112,11 @@ With the loop in operation, the user's part for each issue is:
 3. Test the build in {{SANDBOX_ENV}}. Then remove `Review:Merge` from the issue. The removal is the sign-off
    after the test, and the loop merges the PR on its next run. A merge on GitHub also works.
 
-The merge stage needs permission for an unattended merge. In auto mode, Claude Code can refuse to
-schedule a loop that merges (reason `Merge Without Review`). The user decides whether to allow it in
-their own Claude Code settings. Without that, use the command with stage (2) removed, and merge on
-GitHub or tell Claude to merge.
+The merge stage needs permission for an unattended merge. The kit's `.claude/settings.json` does not
+pre-approve `gh pr merge`, so Claude Code asks before each merge, and in some permission modes it
+can refuse to schedule a loop that merges. The user decides whether to allow the merge in their own
+Claude Code settings. Without that, use the command with stage (2) removed, and merge on GitHub or
+tell Claude to merge.
 
 The loop works on one issue at a time, because the repo has one working folder and one sandbox
 version counter. When CI is a gate in the project, add a stage to the command that waits for a

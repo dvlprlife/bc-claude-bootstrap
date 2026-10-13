@@ -18,9 +18,12 @@ AppSource copy, GitHub issues and PR descriptions, commit-message bodies, and da
 - Where a repo has its own style guide (for example
   `supporting-files/documentation/documentation-style-ste100.md` in a Business Central app repo), that guide
   is the full rule set and wins on detail.
-- Quoted requirement text from a spec (an FRD's acceptance criteria) stays as written.
+- Quoted requirement text from a spec (for example, its acceptance criteria) stays as written.
 
 ## Progress dashboard for long tasks
+
+Skip this section when the `dashboard-builder` subagent or the Artifact tool is not available in
+the session. Do the task without a dashboard, and ask me directly when you need a decision.
 
 For any task with **more than 5 steps**, or that should take **longer than 30 minutes**:
 

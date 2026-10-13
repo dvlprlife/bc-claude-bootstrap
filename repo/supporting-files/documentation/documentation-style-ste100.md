@@ -43,8 +43,8 @@ text conformant.
 
 ### Absolutes, universal qualifiers, and warranty language
 
-**This rule outranks every other rule in this guide, including the active-voice rule.** It applies to **all** documentation the company publishes —
-every application, every website, not only this guide.
+**This rule outranks every other rule in this guide, including the active-voice rule.** It applies to **all** documentation the project publishes —
+the release notes and the listing copy, not only this guide.
 
 8a. **Do not make an absolute claim about how the software behaves.** Documentation is read as a
     promise. An absolute is a warranty the product must then honour in every edge case.

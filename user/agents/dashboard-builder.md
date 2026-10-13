@@ -84,8 +84,8 @@ Timestamps are ISO 8601 UTC strings (`date -u +%Y-%m-%dT%H:%M:%SZ`).
   - `inProgress` = the highest-versioned `release/*` branch on the remote:
     `git ls-remote --heads origin 'release/*'`, sort the suffixes as versions (`sort -V`), take the
     last. `version` = the suffix (`release/27.2.0.0` → `27.2.0.0`); `branch` = the full branch name;
-    `build` = the manifest version on that branch — `git show origin/<branch>:app/app.json` for a
-    Business Central / AL-Go repo, else `package.json` or the project's own manifest — only when it
+    `build` = the manifest version on that branch — the `app.json` in the main app folder for a
+    Business Central / AL-Go repo (for example `git show origin/<branch>:app/app.json`), else `package.json` or the project's own manifest — only when it
     differs from `version` after dropping trailing `.0` segments (`1.0.0.0` vs `1.0.0` is the same;
     `27.2.1.0` vs `27.2.0` is not) — omit it otherwise; `url` = `https://github.com/<repo>/tree/<branch>`.
     Run `git fetch -q origin` first. **No `release/*` branch** (the release branch was merged and

@@ -10,17 +10,17 @@
         {
             "id": "AS0084",
             "action": "Hidden",
-            "justification": "The app uses its own AppSource ID range, outside the AppSource default range."
+            "justification": "Keep only when the ID range is inside 50000..99999: the range is not an AppSource range, and AppSourceCop reports it by design."
         },
         {
             "id": "PTE0001",
             "action": "Hidden",
-            "justification": "AppSource app: objects are outside the per-tenant range 50000..99999."
+            "justification": "Keep only when the ID range is outside 50000..99999: the objects are outside the per-tenant range."
         },
         {
             "id": "PTE0002",
             "action": "Hidden",
-            "justification": "AppSource app: fields are outside the per-tenant range 50000..99999."
+            "justification": "Keep only when the ID range is outside 50000..99999: the fields are outside the per-tenant range."
         }
     ]
 }

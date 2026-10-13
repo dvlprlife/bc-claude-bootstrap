@@ -27,20 +27,19 @@ languages when explicitly asked.
 
 ## AL Coding Guidelines (source of truth: BCQuality)
 
-The authoritative, machine-readable AL coding guidelines for this org live in the
-**BCQuality** knowledge base — our fork at `{{BCQUALITY_REPO}}` (cloned next to
+The authoritative, machine-readable AL coding guidelines for this project live in the
+**BCQuality** knowledge base — the repo `{{BCQUALITY_REPO}}` (cloned next to
 this repo as a sibling, e.g. `../BCQuality`). It is *remedial*: each rule encodes a
 BC-specific pitfall an assistant would otherwise get wrong (CodeCop rule numbers,
 ordering rules like `SetLoadFields` before filters, partial-load patterns, obsoletion
-tags, and our own `custom/knowledge/reliability/` rules — e.g. load the GL Setup before
-using its rounding precision in `Round`, and assign a return value on every path of a
-result-returning procedure).
+tags). When the repo is a fork of `microsoft/BCQuality`, its `custom/knowledge/` layer
+can hold organization-specific rules too.
 
 When proposing or writing AL, follow that guidance; the patterns below are a summary, not
 a replacement. The `/bc-review` skill (`.claude/skills/bc-review/`) enforces these rules
-at review time and compiles the project first — run it on a diff before opening a PR. Add
-a new `custom/knowledge/` file in the fork whenever a real defect slips through, so the
-guideline set compounds.
+at review time and compiles the project first — run it on a diff before opening a PR. When
+the repo is a fork, add a new `custom/knowledge/` file there whenever a real defect slips
+through, so the guideline set compounds.
 
 ## Coding Patterns
 - Tables: keep primary keys stable, add clustered keys as needed, and set `DataClassification = CustomerContent` unless another classification is justified. Reuse existing helper functions/codeunits before adding new ones.
@@ -79,16 +78,16 @@ Beyond compile + BCQuality, changes get a **live human-test pass** in a BC sandb
 
 **Target** (from `{{APP_FOLDER}}/.vscode/launch.json`, which is local-only/untracked): env `{{SANDBOX_ENV}}`, `environmentType` `Sandbox`, tenant `{{TENANT_ID}}`.
 
-**Recipe** — build the package yourself, then publish it prebuilt (the MCP's own build reads only `<project>/.alpackages` and can't see the out-of-tree `supporting-files/.alpackages` symbol cache):
-1. **Bump the build number first.** Increment the **Build** segment of `{{APP_FOLDER}}/app.json` `version` (`Major.Minor.Build.Revision`) by one — `1.0.0.0` → `1.0.1.0` → `1.0.2.0`. Every package published to the sandbox carries its own version, so the install is a real upgrade and the version in **Extensions** tells you which build you are testing. Bump `{{APP_FOLDER}}/app.json` only: the test app is not published by this recipe, and its `dependencies` pin on {{APP_NAME}} is a *minimum* version, which a higher app version still satisfies — leave that pin at its baseline.
+**Recipe** — build the package yourself, then publish it prebuilt (as observed with AL tools 18.0.43, the MCP's own build reads `<project>/.alpackages` and does not see the out-of-tree `supporting-files/.alpackages` symbol cache):
+1. **Bump the build number first.** Increment the **Build** segment of `{{APP_FOLDER}}/app.json` `version` (`Major.Minor.Build.Revision`) by one — `1.0.0.0` → `1.0.1.0` → `1.0.2.0`. A package published to the sandbox with this recipe carries its own version, so the install is a real upgrade and the version in **Extensions** tells you which build you are testing. Bump `{{APP_FOLDER}}/app.json` only: the test app is not published by this recipe, and its `dependencies` pin on {{APP_NAME}} is a *minimum* version, which a higher app version still satisfies — leave that pin at its baseline.
 2. Build the `.app` in **PowerShell** with native Windows paths (the build command in `CLAUDE.md`). Do **not** use Bash with `MSYS_NO_PATHCONV=1` — it leaves `/out:` as a unix path that Windows `alc` silently fails to write.
 3. Publish via `al_publish`: `{ appPath:"<scratch>\X.app", skipBuild:true, environmentName:"{{SANDBOX_ENV}}", environmentType:"Sandbox", tenant:"{{TENANT_ID}}", schemaUpdateMode:"ForceSync", forceUpgrade:true }`. Keep `forceUpgrade` even though the version now moves: testing branches one after another can send the sandbox version backwards, and it is the safety net after a reverted bump.
 4. Discard any `.docx` layout churn the compile left behind (`git status`, then `git checkout --` each one), then **commit the bump**.
 
 **The invariant:** `{{APP_FOLDER}}/app.json` `version` on a branch **is the last build published to the sandbox from that branch**. So bump → build → publish → discard the `.docx` churn → commit `{{APP_FOLDER}}/app.json` alone, as `chore(sandbox): bump build to X.Y.N.0`. If the publish **fails**, revert the bump and commit nothing — an unpublished version number breaks the invariant. Never bump without publishing.
 
-- **Pre-merge publish** → the bump is committed on the feature branch and rides into the PR with the rest of the work. A branch numbers from where it was **cut**, so two branches in flight both claim the same Build and **conflict on the `version` line** at merge. Resolve by keeping the higher number; the post-merge publish re-establishes the invariant on the release branch.
-- **Post-merge publish** → the bump is committed directly on `release/X.X.X.X`. Put `[skip ci]` in that commit message — `app.json` is **not** covered by `CICD.yaml`'s `paths-ignore`, so the push would otherwise start a full run, and this project does not use that run as a gate.
+- **Pre-merge publish** → the bump is committed on the feature branch and rides into the PR with the rest of the work. A branch numbers from where it was **cut**, so two branches in flight both claim the same Build and **conflict on the `version` line** at merge. Resolve by keeping the higher number; the post-merge publish re-establishes the invariant on the base branch.
+- **Post-merge publish** → the bump is committed directly on the base branch (the active `release/X.X.X.X` branch, or `main` when the project has no release branch). Put `[skip ci]` in that commit message — `app.json` is **not** covered by `CICD.yaml`'s `paths-ignore`, so the push would otherwise start a full run, and this project does not use that run as a gate.
 
 **The Build segment is not free — it is part of the released version.** {{APP_NAME}} ships the version that is in `{{APP_FOLDER}}/app.json` at release time, and a patch release uses a non-zero Build. Two consequences: the release process **resets Build to `0`** when it opens the next line (see `supporting-files/documentation/release-process.md`), and a mid-cycle hotfix cannot reuse a Build number the sandbox counter has already burned — pick the next free one.
 
@@ -102,7 +101,7 @@ Beyond compile + BCQuality, changes get a **live human-test pass** in a BC sandb
 
 AL tests can be **run** against the cloud sandbox, not just compiled — this is how a change gets verified when a clean compile can't prove it (an API round-trip, a posting result). Same MCP server.
 
-**Ask the user which environment before publishing** — publishing force-syncs the schema on a shared environment. Tenant `{{TENANT_ID}}` has `{{SANDBOX_ENV}}` (the app-named dev sandbox). Never use a customer or demo tenant for dev test runs.
+**Ask the user which environment before publishing** — publishing force-syncs the schema on a shared environment. Tenant `{{TENANT_ID}}` has `{{SANDBOX_ENV}}` (the development sandbox). Never use a customer or demo tenant for dev test runs.
 
 1. `al_auth_login { tenant:"{{TENANT_ID}}", environmentType:"Sandbox", environmentName:"{{SANDBOX_ENV}}", usernameHint:"<user>@<domain>" }` — opens a browser and caches the token. A returned `authRequired:false` means it is already good.
 2. Build and publish **the app first, then the test app**, each with the prebuilt recipe above (`skipBuild:true`). The Microsoft test toolkit — Test Runner, Library Assert, Application Test Library, Any — must already be installed on the environment.
@@ -186,7 +185,7 @@ Write all end-user documentation in **ASD-STE100 Simplified Technical English**.
 - Put a warning or caution before the instruction it protects, as its own sentence.
 - Keep paragraphs to six sentences or fewer, with one topic per paragraph.
 
-**No absolutes — this rule outranks the others, including active voice.** It applies to **all** documentation the company publishes — every application, every website. Do not make an absolute claim about how the software behaves. Documentation is read as a promise, and an absolute is a warranty the product must then honour in every edge case. Drop *never*, *always*, *every*, *exactly*, *fully*, *ensures*, and *guarantees* from statements about product behavior: write "it **does not** delete it", not "it **never** deletes it"; "An entry is created when…", not "**Every** entry is created when…". Two exemptions: a **directive to the reader** ("Use a sandbox — never production") makes no claim about the software, and a **factual product rule** ("A split must total 100%") is validation the app enforces, not a reliability promise.
+**No absolutes — this rule outranks the others, including active voice.** It applies to **all** documentation the project publishes — the guide, the release notes, and the listing copy. Do not make an absolute claim about how the software behaves. Documentation is read as a promise, and an absolute is a warranty the product must then honour in every edge case. Drop *never*, *always*, *every*, *exactly*, *fully*, *ensures*, and *guarantees* from statements about product behavior: write "it **does not** delete it", not "it **never** deletes it"; "An entry is created when…", not "**Every** entry is created when…". Two exemptions: a **directive to the reader** ("Use a sandbox — never production") makes no claim about the software, and a **factual product rule** ("A split must total 100%") is validation the app enforces, not a reliability promise.
 
 The full standard — scope table, sentence limits, the project dictionary, the Technical-Name exemption, and the docs-PR review checklist — lives in `supporting-files/documentation/documentation-style-ste100.md`. Read it before a docs pass.
 

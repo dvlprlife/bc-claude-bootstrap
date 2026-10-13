@@ -15,8 +15,8 @@ Follow these steps exactly.
 
 ## Step 0 — Reconcile already-merged issues
 
-`Closes #<n>` only auto-closes on merge to the **default** branch. PRs here target `release/X.X.X.X`, so
-a merged fix can leave its issue open. `CloseLinkedIssueOnMerge.yaml` now handles the common case at
+`Closes #<n>` only auto-closes on merge to the **default** branch. When PRs target a `release/X.X.X.X`
+branch, a merged fix can leave its issue open. `CloseLinkedIssueOnMerge.yaml` handles the common case at
 merge time; this step is the **backstop** for what it can't cover (a base branch predating the workflow
 file, or a failed Action run).
 
@@ -89,8 +89,9 @@ gh pr checkout <PR_NUMBER>
 
 - **Gate 1 — compile.** Every affected project (a change under `{{APP_FOLDER}}/` fans out to every project
   that depends on it), all four analyzers against `supporting-files/{{PREFIX}}.ruleset.json`.
-- **Gate 2 — BCQuality.** The knowledge-base passes over the diff: reliability, performance,
-  security, privacy, upgrade, style, UI. The analyzers are the mechanical half; the KB catches the BC
+- **Gate 2 — BCQuality.** The knowledge-base passes over the diff: performance, security, privacy,
+  upgrade, style, UI, plus each domain in the `custom/` layer when the BCQuality clone is a fork that
+  has one. The analyzers are the mechanical half; the KB catches the BC
   pitfalls they don't see. **A clean compile alone is not a pass.**
 
 Do not hand-roll either half or restate its guidelines here. Carry its results into your findings:
@@ -107,14 +108,16 @@ Do not hand-roll either half or restate its guidelines here. Carry its results i
 **Gate 2 can silently not run — confirm that it did.** Report it as **not run**, and do not approve as
 though it passed, whenever:
 
-- The `../BCQuality` fork is missing, so `bc-review` could only compile.
-- `<BCQ>` resolved to upstream `microsoft/BCQuality` instead of our `{{BCQUALITY_REPO}}` fork — the
-  `custom/` layer, including the `reliability` domain, did not apply.
+- The `../BCQuality` clone is missing, so `bc-review` could only compile.
 - The compile gate failed, which by design stops `bc-review` before the KB passes. The errors are the
   finding, but the KB half is still outstanding on the rework pass.
 - BCQuality's returned `outcome` is anything other than `completed` (`no-knowledge`, `partial`, …).
 
 Name whichever applies in the Step 6 report and under **Not verified by this review**.
+
+A clone of upstream `microsoft/BCQuality` is a valid Gate 2 run. Upstream has an empty `custom/`
+layer, so when `<BCQ>` is upstream and the project expects a fork with custom rules, say in the
+report that no custom rules applied. Do not report the gate as not run for that reason.
 
 ### 4b — Repo-specific conventions
 
@@ -222,7 +225,7 @@ is advisory either way — a human performs the merge.
 ### Review Summary
 - <What was reviewed>
 - Gate 1 — build: clean with all four analyzers.
-- Gate 2 — BCQuality: run against the `{{BCQUALITY_REPO}}` fork, outcome `completed`, no blocker/major.
+- Gate 2 — BCQuality: run against `{{BCQUALITY_REPO}}`, outcome `completed`, no blocker/major.
 - All acceptance criteria verified and met.
 
 ### Acceptance Criteria

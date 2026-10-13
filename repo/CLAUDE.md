@@ -27,13 +27,19 @@ $az = Split-Path (Get-ChildItem "$alDir\.store" -Recurse -Filter Microsoft.Dynam
   /analyzer:"$az\Microsoft.Dynamics.Nav.PerTenantExtensionCop.dll" /analyzer:"$az\Microsoft.Dynamics.Nav.UICop.dll"
 ```
 
-- Call **`alc.exe` directly**, not `al compile --`. With AL tools 18.0.43 the `al compile` wrapper
-  does not load the analyzers (one `AL1003` warning for each rule, `System.Collections.Immutable`
-  not found) and still exits 0, so the build looks clean while no analyzer ran. An `AL1003` in
-  the output means the gate did not run.
-- Do **not** use the AL MCP server's own build (`al_build`) to produce a package — it reads only
-  `<project>/.alpackages` and cannot see `supporting-files/.alpackages`. Use `al_downloadsymbols` when
-  symbols are genuinely missing, then re-run the command above.
+- Call **`alc.exe` directly**, not `al compile --`. As observed with AL tools 18.0.43, the
+  `al compile` wrapper does not load the analyzers (one `AL1003` warning for each rule,
+  `System.Collections.Immutable` not found) and still exits 0, so the build looks clean while no
+  analyzer ran. Check this again after an AL tools update. An `AL1003` in the output means the
+  gate did not run.
+- Do **not** use the AL MCP server's own build (`al_build`) to produce a package — as observed with
+  AL tools 18.0.43, it reads `<project>/.alpackages` and does not see `supporting-files/.alpackages`.
+  Use `al_downloadsymbols` when symbols are genuinely missing, copy the downloaded `.app` files from
+  `<project>/.alpackages` to `supporting-files/.alpackages`, then re-run the command above.
+- **Where `/out:` goes.** For a check of `{{APP_FOLDER}}` alone, `$env:TEMP` is fine. When a dependent
+  project compiles next, or the app's objects changed, set `/out:` to
+  `$repo\supporting-files\.alpackages\{{PUBLISHER_FILE}}_{{APP_NAME}}_<version>.app` and delete the
+  superseded package (see **Symbol cache** below). For a dependent project, `$env:TEMP` is fine.
 - Do **not** run this through Bash with `MSYS_NO_PATHCONV=1` — that leaves `/out:` as a unix path
   and Windows `alc` silently fails to write the file.
 - A change under `{{APP_FOLDER}}/` can break every project that depends on it ({{DEPENDENT_FOLDERS}});
@@ -64,8 +70,9 @@ change before committing.
   `workflow_dispatch` ignores the path filters below. Confirm the `branches:` filter in your copy of
   `PullRequestHandler.yaml`.
 - **AL-Go's `CICD.yaml` runs on push to `main` / `release/*` / `feature/*`, with
-  `paths-ignore: ['**.md', '.github/workflows/*.yaml']`** in the default template. Confirm the
-  `on:` block in your copy. Two consequences:
+  `paths-ignore: ['**.md', '.github/workflows/*.yaml', '!.github/workflows/CICD.yaml']`** in the
+  default template (a change to `CICD.yaml` itself does trigger a run). Confirm the `on:` block in
+  your copy. Two consequences:
   - Our feature branches carry no `feature/` prefix, so pushing to one does not auto-trigger it.
   - A **docs-only change triggers no run at all**, even merged straight into a release branch.
 - **`CloseLinkedIssueOnMerge.yaml` auto-closes the issue matching the branch-name number prefix**

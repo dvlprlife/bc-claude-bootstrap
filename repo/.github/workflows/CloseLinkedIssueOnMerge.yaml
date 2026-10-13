@@ -2,13 +2,14 @@ name: Close Linked Issue On Merge
 
 # Post-merge transition for the agent issue workflow.
 #
-# PRs in this repo target a release/X.X.X.X branch (not the default branch), so
-# GitHub's "Closes #N" keyword does NOT auto-close the linked issue, and an
-# issue can be left stranded with a stale Status:* label.
+# When a PR targets a release/X.X.X.X branch (not the default branch), GitHub's
+# "Closes #N" keyword does NOT auto-close the linked issue, and an issue can be
+# left stranded with a stale Status:* label. When a PR targets the default
+# branch, GitHub closes the issue but leaves the Status:* labels on it.
 #
 # When a PR is merged, this workflow finds the linked issue(s) from the PR body
 # closing keywords and/or the <number>-slug branch name, strips the workflow
-# status labels, and closes the issue as completed.
+# status labels, and closes the issue as completed if it is still open.
 #
 # NOTE: a pull_request workflow runs the copy of this file that exists on the
 # PR's BASE branch. Keep this file in sync on every branch that receives PRs
@@ -67,12 +68,14 @@ jobs:
 
           for n in $issues; do
             state="$(gh issue view "$n" --repo "$REPO" --json state --jq '.state' 2>/dev/null || echo "")"
-            if [ "$state" != "OPEN" ]; then
-              echo "Issue #$n is not open (state='${state:-not found}'); skipping."
+            if [ "$state" != "OPEN" ] && [ "$state" != "CLOSED" ]; then
+              echo "Issue #$n was not found as an issue (state='${state:-not found}'); skipping."
               continue
             fi
 
             # Remove only the status labels actually present (avoids gh errors).
+            # This runs for a closed issue too: on a merge to the default branch,
+            # GitHub's closing keyword closes the issue first and leaves the labels.
             current="$(gh issue view "$n" --repo "$REPO" --json labels --jq '.labels[].name')"
             while IFS= read -r label; do
               label="$(printf '%s' "$label" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
@@ -82,6 +85,11 @@ jobs:
                 gh issue edit "$n" --repo "$REPO" --remove-label "$label"
               fi
             done <<< "$STATUS_LABELS"
+
+            if [ "$state" != "OPEN" ]; then
+              echo "Issue #$n is already closed; labels cleared."
+              continue
+            fi
 
             echo "Closing issue #$n"
             gh issue close "$n" --repo "$REPO" --reason completed \
