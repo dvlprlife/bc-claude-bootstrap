@@ -33,6 +33,7 @@ Read this file from start to end before you change anything. Then do the steps i
 | `repo/docs/README.md` | `<repo>/docs/` | End-user guide root |
 | `repo/docs/appsource-listing.md` | `<repo>/docs/` | AppSource listing copy |
 | `repo/docs/img/MANIFEST.md` | `<repo>/docs/img/` | Screenshot capture list |
+| `github/main-pr.ruleset.json` | A GitHub ruleset on the target repo | Branch protection for `main` and `release/*`. Optional: the user chooses it in Step 2 |
 | `user/CLAUDE.md` | `~/.claude/CLAUDE.md` | Global rules: writing standard, progress dashboard |
 | `user/agents/dashboard-builder.md` | `~/.claude/agents/` | Subagent: live progress dashboard on claude.ai |
 | `user/dashboard-builder/template.html` | `~/.claude/dashboard-builder/` | The dashboard page template |
@@ -83,13 +84,14 @@ Get each value from the repo first. Ask the user only for the values you cannot 
 | `{{TENANT_ID}}` | Entra tenant GUID of the sandbox | Ask |
 | `{{BCQUALITY_REPO}}` | BCQuality fork as `owner/repo` (for example `contoso/BCQuality`) | Ask |
 
-Ask three more questions in this step. They have no placeholder, but Step 4 and Step 8 use the answers.
+Ask four more questions in this step. They have no placeholder, but Step 4 and Step 8 use the answers.
 
 | Question | Choices | Used in |
 |---|---|---|
 | **Release branch strategy** — which branch does development target? | `main`, or a release branch `release/X.X.X.X` (ask for the version) | Step 4.6, Step 4.8, Step 8.4 |
 | **CI gate** — is a green GitHub CI run necessary before the sandbox publish? | `No` (the local compile and the sandbox are the gates), or `Yes` (a green `CICD.yaml` run comes first) | Step 4.11 |
 | **.gitignore** — does the repo use the kit's `.gitignore` or its own? | `Kit` (the kit's file replaces the repo's file), or `Own` (the repo keeps its file, and the kit adds the lines it needs) | Step 4.2 |
+| **Branch protection** — does the repo get the kit's GitHub ruleset on `main` and `release/*`? | `Yes` (pull request with one approval, no deletion, no force push; the Admin role is exempt), or `No` (the repo keeps its current rules) | Step 4.12 |
 
 Write the values down and show them to the user in one table before Step 3.
 
@@ -179,6 +181,26 @@ Write the values down and show them to the user in one table before Step 3.
       - `.claude/commands/issue-worker.md`: remove Step 8 (publish). In the report step, tell
         the user to start the CI run, and say that the publish follows a green run.
     The cleanup rule (delete the merged branch after the merge) applies to both answers.
+12. **Branch protection.** Use the branch protection answer from Step 2.
+    - **No:** do not change the repo's rules.
+    - **Yes:** apply the kit's `github/main-pr.ruleset.json` to the target repo. This changes a
+      setting on GitHub, so get the user's approval first. The user needs the Admin role on the
+      repo.
+      1. Run `gh api repos/<owner>/<repo>/rulesets --jq '.[].name'`. If a ruleset with the name
+         `main-pr` is there, show it to the user and do not create a second one.
+      2. Run `gh api repos/<owner>/<repo>/rulesets --method POST --input <kit>/github/main-pr.ruleset.json`.
+      3. Run `gh api repos/<owner>/<repo>/rules/branches/main --jq '[.[].type]'`. The result
+         must list `deletion`, `non_fast_forward`, and `pull_request`.
+
+    The ruleset applies to `main` and to each `release/*` branch. It blocks deletion and force
+    push, and it makes a pull request with one approval and resolved review threads necessary.
+    Tell the user about these three effects before you apply it:
+    - **The Admin role is exempt.** A user with the Admin role can merge their own PR and can
+      push the post-merge sandbox bump to the release branch. A user without that role cannot.
+    - **There is no required status check.** A PR into a release branch gets no automatic build,
+      so a required check would block the merge. Add one only for a check that runs on the PR.
+    - **A private repo on a free GitHub plan does not enforce rulesets.** The repo must be public,
+      or the account must have a paid plan.
 
 ## Step 5 — Install the user-level files
 
@@ -240,6 +262,7 @@ available, skip the dashboard. The issue workflow does not use it.
 - [ ] `CLAUDE.md`, `.github/copilot-instructions.md`, `.mcp.json`, and `.claude/**` are in the repo.
 - [ ] A search for `{{` in the installed files gives no result.
 - [ ] `.gitignore` is the file the user chose, and it has the four lines from Step 4.2.
+- [ ] If the user chose branch protection, the `main-pr` ruleset is active on the repo.
 - [ ] Each `app.json` has the application, platform, and runtime versions that the user gave.
 - [ ] The test app's `app.json` has a dependency on the main app.
 - [ ] `al --version`, `gh auth status`, and `pwsh --version` succeed.
